@@ -3,9 +3,8 @@ MAINTAINER romainf
 
 RUN pacman --noconfirm -Sy base-devel git avahi nss-mdns openssl python2 && pacman --noconfirm -Sc
 
-RUN cd /tmp && git clone https://github.com/tvheadend/tvheadend.git && cd /tmp/tvheadend
-RUN ./configure && make && make install
-RUN cd / && rm -rf /tmp/tvheadend
+# Compile tvheadend from master
+RUN cd /tmp && git clone https://github.com/tvheadend/tvheadend.git && cd /tmp/tvheadend && ./configure && make && make install && cd / && rm -rf /tmp/tvheadend
 
 # Config directory, should be persisted
 VOLUME ["/config"]
