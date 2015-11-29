@@ -1,22 +1,30 @@
-FROM cellofellow/rpi-arch
-MAINTAINER romainf
+FROM armelbuild/debian:jessie
+ENV DEBIAN_FRONTEND noninteractive
+ENV HTS_COMMIT master
 
-RUN pacman --noconfirm -Sy base-devel git avahi nss-mdns openssl python2 libunistring && pacman --noconfirm -Scc
+# Install repos and packages
+RUN apt-get update && apt-get -y upgrade
 
-# Compile tvheadend from master
-RUN cd /tmp && git clone https://github.com/tvheadend/tvheadend.git && cd /tmp/tvheadend && ./configure && make && make install && cd / && rm -rf /tmp/tvheadend
+# Install software and repos
+RUN apt-get install -m -y wget git curl make dkms dpkg-dev \
+    debconf-utils software-properties-common \
+    build-essential hdhomerun-config libhdhomerun-dev debhelper libswscale-dev \
+    libavahi-client-dev libavformat-dev libavcodec-dev liburiparser-dev \
+    libssl-dev libiconv-hook1 libiconv-hook-dev
 
-# Config directory, should be persisted
-VOLUME ["/config"]
+# checkout, build, and install tvheadend
+RUN git clone https://github.com/tvheadend/tvheadend.git /srv/tvheadend \
+  && cd /srv/tvheadend && git checkout ${HTS_COMMIT} && ./configure --libffmpeg_static && make && make install
 
-# Records directory, for video recorder and timeshif
-VOLUME ["/records"]
+# Clean up APT and temporary files
+RUN rm -r /srv/tvheadend && apt-get purge -qq build-essential pkg-config git
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# HTTP port (web interface)
-EXPOSE 9981
+EXPOSE 9981 9982
 
-# HTSP port (stream)
-EXPOSE 9982
+VOLUME /config /recordings /data
 
-ENTRYPOINT ["/usr/local/bin/tvheadend"]
-CMD ["-c", "/config"]
+# add a user to run as non root
+RUN adduser --disabled-password --gecos '' hts
+
+CMD ["/usr/local/bin/tvheadend","-C","-u","hts","-g","hts","-c","/config"]
